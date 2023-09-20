@@ -26,6 +26,7 @@ from langchain.agents.agent_toolkits import (
     VectorStoreInfo
 )
 from langchain.vectorstores import FAISS
+from langchain.document_loaders.merge import MergedDataLoader
 
 os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_API_KEY')
 
@@ -37,9 +38,6 @@ os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_API_KEY')
 #     placeholder="Paste your openAI API key, sk-",
 #     type="password")
 
-uploaded_file = st.sidebar.file_uploader("upload", type="pdf")
-
-delimiter = "####"
 prompt = st.sidebar.text_area("Prompt", value=f"""Sos un chatbot de una empresa,
      si la pregunta contiene información que no esta en la informacion del pdf responde
       'Lo siento no tengo informacion de ese producto, por favor contactate con ariel3.coman@hotmail.com/
@@ -85,17 +83,31 @@ Make sure to include #### to separate every step.
 
 
       """)
+uploaded_file = st.sidebar.file_uploader("upload", type="pdf")
 
-if uploaded_file:
+
+uploaded_file_csv = st.sidebar.file_uploader("upload", type="csv")
+
+delimiter = "####"
+
+
+if uploaded_file and uploaded_file_csv:
     # use tempfile because CSVLoader only accepts a file_path
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         tmp_file.write(uploaded_file.getvalue())
         tmp_file_path = tmp_file.name
-
     loader = PyPDFLoader(file_path=tmp_file_path)
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file_csv:
+        tmp_file_csv.write(uploaded_file_csv.getvalue())
+        tmp_file_path_csv = tmp_file_csv.name
+
+    loader_csv = CSVLoader(file_path=tmp_file_path_csv, encoding="utf-8", csv_args={'delimiter': ','})
     # loader = CSVLoader(file_path=tmp_file_path, encoding="utf-8", csv_args={
     # 'delimiter': ','})
-    data = loader.load()
+
+    loader_all = MergedDataLoader(loaders=[loader, loader_csv])
+    data = loader_all.load()
     # embeddings = HuggingFaceEmbeddings()
 
     hfemb = HuggingFaceEmbeddings()
